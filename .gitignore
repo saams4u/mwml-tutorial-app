@@ -3,9 +3,9 @@
 .vscode
 
 # Python
-# *.pyc
-# __pycache__/
-# .pytest_cache/
+*.pyc
+__pycache__/
+.pytest_cache/
 venv/
 
 # Data
