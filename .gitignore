@@ -10,7 +10,7 @@ venv/
 
 # Data
 dataset/
-# results/*
+results/
 embeddings/
 experiments/
 logs/

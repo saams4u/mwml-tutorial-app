@@ -8,7 +8,7 @@ from data import HANDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-data_folder = '/home/saams4u/mwml-tutorial-app/output'
+data_folder = '/home/saams4u/mwml-tutorial-app/results'
 
 batch_Size = 64
 workers = 4

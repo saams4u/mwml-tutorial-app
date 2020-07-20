@@ -11,7 +11,7 @@ from utils import *
 from data import HANDataset
 
 
-data_folder = '/home/saams4u/mwml-tutorial-app/output'
+data_folder = '/home/saams4u/mwml-tutorial-app/results'
 word2vec_file = os.path.join(data_folder, 'word2vec_model')
 
 

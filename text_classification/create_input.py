@@ -5,10 +5,10 @@ from utils import create_input, train_word2vec_model
 
 if __name__ == '__main__':
 	create_input(csv_folder='/home/saams4u/mwml-tutorial-app/dataset',
-				 output_folder='/home/saams4u/mwml-tutorial-app/output',
+				 output_folder='/home/saams4u/mwml-tutorial-app/results',
 				 sentence_limit=15,
 				 word_limit=20,
 				 min_word_count=5)
 
-	train_word2vec_model(data_folder='/home/saams4u/mwml-tutorial-app/output',
+	train_word2vec_model(data_folder='/home/saams4u/mwml-tutorial-app/results',
 						 algorithm='skipgram')
