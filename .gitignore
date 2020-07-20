@@ -9,8 +9,8 @@ __pycache__/
 venv/
 
 # Data
-dataset/
-output/
+dataset/*
+output/*
 embeddings/
 experiments/
 logs/
