@@ -37,6 +37,12 @@ sent_tokenizer = PunktSentenceTokenizer()
 word_tokenizer = TreebankWordTokenizer()
 
 
+def save_dict(d, filepath):
+
+    with open(filepath, 'w') as fp:
+        json.dump(d, indent=2, sort_keys=False, fp=fp)
+
+
 def preprocess(text):
 
     if isinstance(text, float):
@@ -127,7 +133,7 @@ def create_input(csv_folder, output_folder, sentence_limit,
                 os.path.join(output_folder, 'TRAIN_data.pth.tar'))
     print('Encoded, padded training data saved to %s.\n' % os.path.abspath(output_folder))
 
-    del trian_docs, encoded_train_docs, train_labels, sentences_per_train_document, words_per_train_sentence
+    del train_docs, encoded_train_docs, train_labels, sentences_per_train_document, words_per_train_sentence
 
     print('Reading and preprocessing test data...\n')
     test_docs, test_labels, _ = read_csv(csv_folder, 'test', sentence_limit, word_limit)
@@ -244,3 +250,48 @@ def adjust_learning_rate(optimizer, scale_factor):
         param_group['lr'] = param_group['lr'] * scale_factor
 
     print("The new learning rate is %f\n" % (optimizer.param_groups[0]['lr'],))
+
+
+def get_best_run(project, metric, objective):
+    # Get all runs
+    api = wandb.Api()
+    runs = api.runs(project)
+
+    # Define objective
+    if objective == 'maximize':
+        best_metric_value = np.NINF
+    elif objective == 'minimize':
+        best_metric_value = np.inf
+
+    # Get best run based on metric
+    best_run = None
+    for run in runs:
+        if run.state == "finished":
+            metric_value = run.summary[metric]
+            if objective == 'maximize':
+                if metric_value > best_metric_value:
+                    best_run = run
+                    best_metric_value = metric_value
+            else:
+                if metric_value < best_metric_value:
+                    best_run = run
+                    best_metric_value = metric_value
+
+    return best_run
+
+
+def load_run(run):
+    run_dir = os.path.join(
+        config.BASE_DIR, '/'.join(run.summary['run_dir'].split('/')[-2:]))
+
+    # Create run dir if it doesn't exist
+    if not os.path.isdir(run_dir):
+        os.makedirs(run_dir)
+    else:
+        return run_dir
+
+    # Load run files (if it exists, nothing happens)
+    for file in run.files():
+        file.download(replace=False, root=run_dir)
+
+    return run_dir
