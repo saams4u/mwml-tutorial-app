@@ -32,12 +32,11 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 
 from text_classification import config, data, models, utils
+
 from text_classification.evaluate import *
-
-from models import HierarchialAttentionNetwork
-
 from text_classification.utils import *
 from text_classification.data import HANDataset
+from text_classification.models import HierarchialAttentionNetwork
 
 
 data_folder = './results'

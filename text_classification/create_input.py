@@ -1,5 +1,9 @@
 # create_input.py - generate input files to be processed for classification
 
+import sys
+
+sys.path.append(".")
+
 from text_classification.utils import create_input, train_word2vec_model
 
 
