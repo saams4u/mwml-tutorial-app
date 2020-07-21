@@ -13,7 +13,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from text_classification import train, config, data, models, utils
+from text_classification import config, data, models, utils
+from text_classification.train import *
 
 
 data_folder = './results'

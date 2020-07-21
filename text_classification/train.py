@@ -35,8 +35,9 @@ from text_classification import config, data, models, utils
 from text_classification.evaluate import *
 
 from models import HierarchialAttentionNetwork
-from utils import *
-from data import HANDataset
+
+from text_classification.utils import *
+from text_classification.data import HANDataset
 
 
 data_folder = './results'

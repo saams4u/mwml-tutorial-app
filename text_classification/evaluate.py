@@ -4,10 +4,10 @@ import os
 import time
 
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from text_classification.train import *
 
-from utils import *
-from data import HANDataset
+from text_classification.train import *
+from text_classification.utils import *
+from text_classification.data import HANDataset
 
 import wandb
 import json
