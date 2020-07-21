@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 import wandb
 
-wandb.init(project="mwml-tutorial-app", sync_tensorboard=True)
+wandb.init(project="mwml-tutorial-app", sync_tensorboard=False)
 
 import torch
 import torch.nn as nn
