@@ -17,6 +17,7 @@ import json
 import gensim
 import logging
 
+import wandb
 
 classes = ['Society & Culture',
            'Science & Mathematics',
@@ -35,6 +36,19 @@ rev_label_map = {v: k for k, v in label_map.items()}
 # Tokenizers
 sent_tokenizer = PunktSentenceTokenizer()
 word_tokenizer = TreebankWordTokenizer()
+
+
+def create_dirs(dirpath):
+    """Creating directories."""
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+
+
+def load_json(filepath):
+    """Load a json file."""
+    with open(filepath, "r") as fp:
+        json_obj = json.load(fp)
+    return json_obj
 
 
 def save_dict(d, filepath):

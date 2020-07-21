@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from text_classification import train, config, data, models, utils
 
 
-data_folder = '../results'
+data_folder = './results'
 word2vec_file = os.path.join(data_folder, 'word2vec_model')
 
 with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
@@ -31,15 +31,15 @@ def get_run_components(run_dir):
     _, emb_size = load_word2vec_embeddings(word2vec_file, word_map)
 
     model = models.HierarchialAttentionNetwork(n_classes=n_classes,
-    											vocab_size=len(word_map),
-    											emb_size=emb_size,
-    											word_rnn_size=word_rnn_size,
-    											sentence_rnn_size=sentence_rnn_size,
-    											word_rnn_layers=word_rnn_layers,
-    											sentence_rnn_layers=sentence_rnn_layers,
-    											word_att_size=word_att_size,
-    											sentence_att_size=sentence_att_size,
-    											dropout=dropout)
+                                                vocab_size=len(word_map),
+                                                emb_size=emb_size,
+                                                word_rnn_size=word_rnn_size,
+                                                sentence_rnn_size=sentence_rnn_size,
+                                                word_rnn_layers=word_rnn_layers,
+                                                sentence_rnn_layers=sentence_rnn_layers,
+                                                word_att_size=word_att_size,
+                                                sentence_att_size=sentence_att_size,
+                                                dropout=dropout)
 
     # Load model
     model.load_state_dict(torch.load(os.path.join(run_dir, 'model.pt')))
@@ -64,29 +64,27 @@ def predict(inputs, model, word_map):
 
     accs = AverageMeter()
 
-    for i, (val_documents, val_sentences_per_document, val_words_per_sentence, labels) in enumerate(
+    for i, (documents, sentences_per_document, words_per_sentence, labels) in enumerate(
         tqdm(test_loader, desc='Evaluating')):
 
-        val_documents = val_documents.to(device)
-        val_sentences_per_document = val_sentences_per_document.squeeze(1).to(device)
+        documents = documents.to(device)
+        sentences_per_document = sentences_per_document.squeeze(1).to(device)
         labels = labels.squeeze(1).to(device)
 
-        val_scores, val_word_alphas, val_sentence_alphas = model(val_documents, val_sentences_per_document,
-                                                     val_words_per_sentence)
+        scores, word_alphas, sentence_alphas = model(documents, sentences_per_document,
+                                                     words_per_sentence)
 
-        val_criterion = nn.CrossEntropyLoss()
-        val_loss = criterion(val_scores, labels)
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(scores, labels)
 
-        _, val_predictions = val_scores.max(dim=1)
-        correct_val_predictions = torch.eq(val_predictions, labels).sum().item()
-        val_acc = correct_val_predictions / labels.size(0)
+        _, predictions = scores.max(dim=1)
+        correct_predictions = torch.eq(predictions, labels).sum().item()
+        accuracy = 100 * correct_predictions / labels.size(0)
 
-        accs.update(val_acc, labels.size(0))
+        accs.update(accuracy, labels.size(0))
         start = time.time()
 
-    performance = get_performance(val_predictions, labels, label_map)
-    plot_confusion_matrix(val_predictions, labels, label_map, 
-        fp=os.path.join(wandb.run.dir, 'confusion_matrix.png'))
+    performance = get_performance(predictions, labels, label_map)
 
     save_dict(performance, filepath=os.path.join(wandb.run.dir, 'performance.json'))
     config.logger.info(json.dumps(performance, indent=2, sort_keys=False))
@@ -94,7 +92,7 @@ def predict(inputs, model, word_map):
     results = []
     results.append(performance)
 
-    return results
+    return loss, accuracy, predictions, results
 
 
 if __name__ == '__main__':
@@ -118,3 +116,4 @@ if __name__ == '__main__':
     # Predict
     results = predict(inputs=inputs, model=model, word_map=word_map)
     config.logger.info(json.dumps(results, indent=4, sort_keys=False))
+

@@ -4,6 +4,7 @@ import os
 import time
 
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from text_classification.train import *
 
 from utils import *
 from data import HANDataset
@@ -11,18 +12,7 @@ from data import HANDataset
 import wandb
 import json
 
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-data_folder = '../results'
-word2vec_file = os.path.join(data_folder, 'word2vec_model')
-
-with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
-	word_map = json.load(j)
-
-batch_size = 64
-workers = 4
-print_freq = 2000
+import matplotlib.pyplot as plt
 
 
 def plot_confusion_matrix(predictions, labels, classes, fp, cmap=plt.cm.Blues):
@@ -57,6 +47,7 @@ def plot_confusion_matrix(predictions, labels, classes, fp, cmap=plt.cm.Blues):
 
 
 def get_performance(predictions, labels, classes):
+    
 	performance = {'overall': {}, 'class': {}}
 	metrics = precision_recall_fscore_support(labels, predictions)
 
@@ -76,50 +67,44 @@ def get_performance(predictions, labels, classes):
 	return performance
 
 
-def evaluate(model, word_map):
+def evaluate(model):
 
-	checkpoint = 'checkpoint_han.pth.tar'
-	checkpoint = torch.load(checkpoint)
+    checkpoint = 'checkpoint_han.pth.tar'
+    checkpoint = torch.load(checkpoint)
 
-	model = checkpoint['model']
-	model = model.to(device)
-	model.eval()
-
-	test_loader = torch.utils.data.DataLoader(HANDataset(data_folder, 'test'), batch_size=batch_size,
+    model = checkpoint['model']
+    model = model.to(device)
+    
+    model.eval()
+    
+    test_loader = torch.utils.data.DataLoader(HANDataset(data_folder, 'test'), batch_size=batch_size,
 												shuffle=False, num_workers=workers, pin_memory=True)
 
-	accs = AverageMeter()
-
-	for i, (val_documents, val_sentences_per_document, val_words_per_sentence, labels) in enumerate(
+    accs = AverageMeter()
+                                                
+    for i, (documents, sentences_per_document, words_per_sentence, labels) in enumerate(
 		tqdm(test_loader, desc='Evaluating')):
+        
+        documents = documents.to(device)
+        sentences_per_document = sentences_per_document.squeeze(1).to(device)
+        
+        labels = labels.squeeze(1).to(device)
+        
+        scores, word_alphas, sentence_alphas = model(documents, sentences_per_document,
+													 words_per_sentence)
+                                                     
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(scores, labels)
+        
+        _, predictions = scores.max(dim=1)
 
-		val_documents = val_documents.to(device)
-		val_sentences_per_document = val_sentences_per_document.squeeze(1).to(device)
-		labels = labels.squeeze(1).to(device)
+        predictions = torch.eq(predictions, labels).sum().item()
+        accuracy = 100 * correct_predictions / labels.size(0)
+        
+        accs.update(accuracy, labels.size(0))
+        start = time.time()
+    
+    return loss, accuracy, predictions, labels
 
-		val_scores, val_word_alphas, val_sentence_alphas = model(val_documents, val_sentences_per_document,
-													 val_words_per_sentence)
-
-		val_criterion = nn.CrossEntropyLoss()
-		val_loss = criterion(val_scores, labels)
-
-		_, val_predictions = val_scores.max(dim=1)
-		correct_val_predictions = torch.eq(val_predictions, labels).sum().item()
-		val_acc = correct_val_predictions / labels.size(0)
-
-		accs.update(val_acc, labels.size(0))
-		start = time.time()
-
-	performance = get_performance(val_predictions, labels, label_map)
-	plot_confusion_matrix(val_predictions, labels, label_map, 
-		fp=os.path.join(wandb.run.dir, 'confusion_matrix.png'))
-
-	save_dict(performance, filepath=os.path.join(wandb.run.dir, 'performance.json'))
-	config.logger.info(json.dumps(performance, indent=2, sort_keys=False))
-
-	results = []
-	results.append(performance)
-
-	return results
-
-	# print('\n * TEST ACCURACY - %.1f per cent\n' % (accs.avg * 100))
+# plot_confusion_matrix(predictions, labels, label_map, 
+    #     fp=os.path.join(wandb.run.dir, 'confusion_matrix.png'))

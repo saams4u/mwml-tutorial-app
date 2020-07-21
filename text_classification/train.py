@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 import wandb
 
-wandb.init(project="mwml-tutorial-app")
+wandb.init(project="mwml-tutorial-app", sync_tensorboard=True)
 
 import torch
 import torch.nn as nn
@@ -31,14 +31,15 @@ import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 
-from text_classificiation import config, data, models, utils, evaluate
+from text_classification import config, data, models, utils
+from text_classification.evaluate import *
 
 from models import HierarchialAttentionNetwork
 from utils import *
 from data import HANDataset
 
 
-data_folder = '../results'
+data_folder = './results'
 word2vec_file = os.path.join(data_folder, 'word2vec_model')
 
 with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
@@ -102,7 +103,7 @@ def main():
 
 		optimizer = optim.Adam(params=filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
 
-	train_criterion = nn.CrossEntropyLoss()
+	criterion = nn.CrossEntropyLoss()
 
 	model = model.to(device)
 
@@ -111,7 +112,7 @@ def main():
 		"Model:\n"
 		f"	{model.named_parameters}")
 
-	train_criterion = train_criterion.to(device)
+	criterion = criterion.to(device)
 
 	train_loader = torch.utils.data.DataLoader(HANDataset(data_folder, 'train'), batch_size=batch_size,
 											   shuffle=True, num_workers=workers, pin_memory=True)
@@ -121,17 +122,13 @@ def main():
 	for epoch in range(start_epoch, epochs):
 		train(train_loader=train_loader,
 			  model=model, 
-			  criterion=train_criterion,
+			  criterion=criterion,
 			  optimizer=optimizer,
 			  epoch=epoch)
 
 		adjust_learning_rate(optimizer, 0.1)
 
-		best_val_loss = np.inf
-
-		if val_loss < best_val_loss:
-			best_val_loss = val_loss
-			save_checkpoint(epoch, model, optimizer, word_map)
+		save_checkpoint(epoch, model, optimizer, word_map)
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -146,61 +143,66 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
 	start = time.time()
 
-	for i, (train_documents, train_sentences_per_document, train_words_per_sentence, labels) in enumerate(train_loader):
+	for i, (documents, sentences_per_document, words_per_sentence, labels) in enumerate(train_loader):
 
 		data_time.update(time.time() - start)
 
-		train_documents = train_documents.to(device)
-		train_sentences_per_document = train_sentences_per_document.squeeze(1).to(device)
-		train_words_per_sentence = train_words_per_sentence.to(device)
+		documents = documents.to(device)
+		sentences_per_document = sentences_per_document.squeeze(1).to(device)
+		words_per_sentence = words_per_sentence.to(device)
 		
 		labels = labels.squeeze(1).to(device)
 
-		train_scores, train_word_alphas, train_sentence_alphas = model(train_documents, train_sentences_per_document, 
-			train_words_per_sentence)
+		scores, word_alphas, sentence_alphas = model(documents, 
+            sentences_per_document, words_per_sentence)
 
-		train_loss = criterion(train_scores, labels)
+		loss = criterion(scores, labels)
 
 		optimizer.zero_grad()
-		train_loss.backward()
+		loss.backward()
 
 		if grad_clip is not None:
 			clip_gradient(optimizer, grad_clip)
 
 		optimizer.step()
 
-		_, train_predictions = train_scores.max(dim=1)
-		correct_train_predictions = torch.eq(train_predictions, labels).sum().item()
-		train_acc = correct_train_predictions / labels.size(0)
+		_, predictions = scores.max(dim=1)
 
-		losses.update(train_loss.item(), labels.size(0))
+		correct_predictions = torch.eq(predictions, labels).sum().item()
+		accuracy = 100 * correct_predictions / labels.size(0)
+
+		losses.update(loss.item(), labels.size(0))
 		batch_time.update(time.time() - start)
-		accs.update(train_acc, labels.size(0))
+		accs.update(accuracy, labels.size(0))
 
 		start = time.time()
-		evaluate(model, word_map)
+
+		config.logger.info(
+            f"Epoch: {epoch+1} | "
+            f"train_loss: {loss:.2f}, train_acc: {accuracy:.1f} ")
+        wandb.log({
+            "train_loss": loss,
+            "train_acc": accuracy})
+
+        test_loss, test_acc, predictions, labels = evaluate(model=model)
+
+        config.logger.info(
+        	"Test performance:\n"
+        	f"	test_loss: {test_loss:.2f}, test_acc: {test_acc:.1f}")
+        wandb.log({
+        	"test_loss": test_loss,
+        	"test_acc": test_acc})
 
 		if i % print_freq == 0:
 			print('Epoch [{0}]{1}/{2}]\t'
 				  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-				  'Data Load Time {data_time.val:.3f} ({data_Time.avg:.3f})\t'
-				  'Train Loss {train_loss.val:.4f} ({train_loss.avg:.4f})\t'
-				  'Train Acc {train_acc.val:.3f} ({train_acc.avg:.3f})\t'
-				  'Val Loss {val_loss.val:.4f} ({val_loss.avg:.4f})\t'
-				  'Val Acc {val_acc.val:.3f} ({val_acc.avg:.3f})'.format(epoch, i, len(train_loader),
+				  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+				  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+				  'Acc {acc.val:.3f} ({acc.avg:.3f})'.format(epoch, i, len(train_loader),
 				  												  batch_time=batch_time,
 				  												  data_time=data_time, loss=losses,
 				  												  acc=accs))
-			config.logger.info(
-	            f"Epoch: {epoch+1} | "
-	            f"train_loss: {train_loss:.2f}, train_acc: {train_acc:.1f}, "
-	            f"val_loss: {val_loss:.2f}, val_acc: {val_acc:.1f}")
-	        wandb.log({
-	            "train_loss": train_loss,
-	            "train_acc": train_acc,
-	            "val_loss": val_loss,
-	            "val_acc": val_acc})
-
+	return loss, accuracy
 
 if __name__ == '__main__':
 	main()
