@@ -62,11 +62,11 @@ batch_size = 64
 lr = 1e-3
 
 momentum = 0.9
-workers = 4
+workers = 16
 epochs = 2
 
 grad_clip = None
-print_freq = 2000
+print_freq = 5000
 checkpoint = None
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -202,6 +202,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #                                                         batch_time=batch_time,
             #                                                         data_time=data_time, loss=losses,
             #                                                         acc=accs))
+    
     return loss, accuracy
 
 if __name__ == '__main__':
