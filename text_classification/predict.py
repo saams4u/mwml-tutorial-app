@@ -50,7 +50,7 @@ def get_run_components(run_dir):
     return model, word_map
 
 
-def predict(inputs, model, word_map):
+def predict(inputs, args, model, word_map):
 
     checkpoint = 'checkpoint_han.pth.tar'
     checkpoint = torch.load(checkpoint)
@@ -92,7 +92,7 @@ def predict(inputs, model, word_map):
     results = []
     results.append(performance)
 
-    return loss, accuracy, predictions, results
+    return results
 
 
 if __name__ == '__main__':
@@ -114,6 +114,6 @@ if __name__ == '__main__':
     model, word_map = get_run_components(run_dir=best_run_dir)
 
     # Predict
-    results = predict(inputs=inputs, model=model, word_map=word_map)
+    results = predict(inputs=inputs, args=args, model=model, word_map=word_map)
     config.logger.info(json.dumps(results, indent=4, sort_keys=False))
 

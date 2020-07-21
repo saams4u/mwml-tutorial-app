@@ -98,7 +98,7 @@ def evaluate(model):
         
         _, predictions = scores.max(dim=1)
 
-        predictions = torch.eq(predictions, labels).sum().item()
+        correct_predictions = torch.eq(predictions, labels).sum().item()
         accuracy = 100 * correct_predictions / labels.size(0)
         
         accs.update(accuracy, labels.size(0))
